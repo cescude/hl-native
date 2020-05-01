@@ -7,8 +7,13 @@ import scala.util.matching.Regex
 object Main {
 
   class Config(args: Seq[String]) extends ScallopConf(args) {
-    val i = opt[Boolean]("i")
-    val tokens = trailArg[List[String]]("tokens")
+    banner("""
+      |Reads the contents STDIN and colorizes the matching regexp. Essentially,
+      |this is like running a highlighter through your console.
+      |""".stripMargin)
+
+    val ignoreCase = opt[Boolean]("ignore-case", short='i')
+    val tokens = trailArg[List[String]]("exprs", descr="List of regular expressions to match")
     verify()
   }
 
@@ -26,7 +31,7 @@ object Main {
 
     val conf = new Config(args)
     val rxs: Seq[(Regex,fansi.Attr)] = conf.tokens()
-      .map(s => if (conf.i()) s"(?i)$s" else s)
+      .map(s => if (conf.ignoreCase()) s"(?i)$s" else s)
       .zip(Stream.from(0))
       .map({
         case (s, idx) => (s.r, colors(idx % colors.length))
@@ -38,7 +43,7 @@ object Main {
           rx.findAllMatchIn(rawLine)
             .map(m => (m.start, m.end))
             .foldLeft(str) {
-              case (s, (start, end)) => s.overlay(c, start, end)
+              case (s, (start, end)) => s.overlay(c, start, end).overlay(fansi.Reversed.On, start, end)
             }
       }
 
